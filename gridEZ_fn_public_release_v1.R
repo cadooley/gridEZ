@@ -874,7 +874,7 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
   EZ_pop_raster_master <- raster(EZ_pop_master_mat,crs=r_crs, xmn=r_xmn, xmx=r_xmx, ymn=r_ymn, ymx=r_ymx)
   writeRaster(EZ_raster_master, paste(output_path,"/EZ_raster_master", run_ID, ".tif",sep=""), datatype = 'INT4U', format = "GTiff")
   writeRaster(EZ_pop_raster_master, paste(output_path,"/EZ_pop_raster_master", run_ID, ".tif",sep=""), format = "GTiff")
-  return(NA)
   unlink(paste(output_path,"/clump_info",run_ID, ".RData",sep=""), recursive = TRUE)
   unlink(paste(output_path,"/temp_folder", run_ID, sep=""), recursive = TRUE)
+  return(NA)
 }
