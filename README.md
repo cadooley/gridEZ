@@ -20,4 +20,4 @@ EZs are generated from three input rasters that cover the study region. These ar
 
 As the predefined_EZ_size functionality has been thoroughly tested, it is recommended that users take advantage of the predefined_EZ_size specification by setting this to = "small", "medium" or "large". 
 
-Testing of user defined EZ_by_hh, target_hh_per_EZ, pop_per_hh, EZ_by_pop, target_pop_per_EZ and max_cells_per_EZ is ongoing. 
+Testing of EZ_by_hh, target_hh_per_EZ, pop_per_hh, EZ_by_pop, target_pop_per_EZ and max_cells_per_EZ functionality is ongoing. 
