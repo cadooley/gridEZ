@@ -17,6 +17,8 @@ memory.limit(5000000)
 ncores <- 7
 par_type <- "PSOCK"
 
+# read in gridEZ function
+source('gridEZ_fn_public_release_v1.R')
 
 # set input files
 
@@ -26,7 +28,7 @@ country_settlement_raster <- raster("~/gridEZ/X/X_ghs_smod.tif")
 
 
 # run grid EZ code
-EZ_output <- gridEZ(population_raster = country_population_raster, 
+gridEZ(population_raster = country_population_raster, 
                      settlement_raster = country_settlement_raster, 
                      strata_raster = country_strata_raster, 
                      exclude_unsettled = FALSE, unsettled_ID = 0, 
