@@ -7,14 +7,18 @@ EZs are generated from three input rasters that cover the study region. These ar
 
 ### Instructions
 
-1. Open and run gridEZ_fn_public_release_v1.R
-2. Open gridEZ_running_script_public_release_v1.R 
+1. Download 'gridEZ_running_script_public_release_v1.R' and 'gridEZ_fn_public_release_v1.R'
+2. Open 'gridEZ_running_script_public_release_v1.R' in R 
 3. Edit memory.limit(#), if needed
 4. Edit ncores and par_type to suit your computing system's parallel processing 
-4. Load in your input population, strata and settlement rasters by editing the pathways and filenames under'set input files' section
-5. Edit gridEZ() specifications for your EZ generations under 'run grid EZ code' section
-6. Run whole gridEZ_running_script_public_release_v1.R script
+5. If needed, edit source() to include the file location of 'gridEZ_fn_public_release_v1.R' in order to read in the gridEZ function 
+6. Load in your input population, strata and settlement rasters by editing the pathways and filenames under'set input files' section
+7. Edit gridEZ() specifications for your EZ generations under 'run grid EZ code' section
+8. Run whole gridEZ_running_script_public_release_v1.R script
 
+### Saint Kitts and Nevis example
+
+Please try out this example to see what an output sampling frame looks like. The R script produces summaries of the output EZs, which may be helpful code for other gridded sampling frames.
 
 ### Recommendations (as of 16/07/2019)
 

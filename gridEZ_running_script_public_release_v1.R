@@ -14,8 +14,9 @@ library(parallel)     #base package
 memory.limit(5000000)
 
 # specify number of cores to use during parallel processing and type of parallel processing
-ncores <- 7
-par_type <- "PSOCK"
+ncores <- 7             # instead of specifying, may want to do: ncores <- detectCores() - 1
+par_type <- "PSOCK"     # parallel processing type - "PSOCK" for windows, "FORK" for linux, unix, mac 
+
 
 # read in gridEZ function
 source('gridEZ_fn_public_release_v1.R')
