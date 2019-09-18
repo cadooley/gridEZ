@@ -18,7 +18,7 @@ EZs are generated from three input rasters that cover the study region. These ar
 
 ### Saint Kitts and Nevis example
 
-Please try out this example to see what an output sampling frame looks like. The R script produces summaries of the output EZs, which may be helpful code for other gridded sampling frames.
+Please try out this example to see what an output sampling frame looks like. The R script includes code for producing summaries of the output EZs, this code may be helpful for summarising other gridded sampling frames.
 
 ### Recommendations (as of 16/07/2019)
 
