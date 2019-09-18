@@ -36,10 +36,8 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
   settlement_raster <- crop(settlement_raster, new_extent)
   strata_raster <- crop(strata_raster, new_extent)
   if(!dim(population_raster)[1] == dim(strata_raster)[1] | !dim(population_raster)[1] == dim(settlement_raster)[1] | !dim(population_raster)[2] == dim(strata_raster)[2] | !dim(population_raster)[2] == dim(settlement_raster)[2]){
-    dir.create(paste(output_path,"/mismatch_input_extents", sep=""))
     stop("Unable to crop input rasters to same extent. Edit input rasters so that they have matching dimensions then re-run gridEZ code")
   }
-  # need extra check here to make sure extents match 
   if(exclude_unsettled == TRUE){
     if(is.numeric(unsettled_ID) == FALSE | !length(unsettled_ID) == 1){
       stop("unsettled_ID needs to be a single number")
@@ -65,6 +63,10 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
       max_cells_per_EZ <- 100
     }
     if(EZ_target_size == "medium"){
+      target_pop_per_EZ <- 500
+      max_cells_per_EZ <- 900
+    }
+    if(EZ_target_size == "med"){
       target_pop_per_EZ <- 500
       max_cells_per_EZ <- 900
     }
@@ -145,14 +147,13 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
     if(is.numeric(max_cells_per_EZ) == FALSE | !length(max_cells_per_EZ) == 1){
       stop("max_cells_per_EZ needs to be a single number")
     }
-    # might want to add a minimum value for max_cells_per_EZ here
   }
   
   ###########################
   # create temporary folder #
   ###########################
   
-  print(paste("creating", " /temp_folder", run_ID, sep=""))       #keep this up here, well before trying to save to the files
+  print(paste("creating", " /temp_folder", run_ID, sep=""))       
   dir.create(paste(output_path,"/temp_folder", run_ID, sep="")) 
   
   ###############################################################
@@ -179,7 +180,6 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
   strat_vals <- sort(unique(strata_mat[!is.na(strata_mat)]))
   strat_sett_df <- cbind(rep(strat_vals, each = length(sett_vals)), rep(sett_vals, length(strat_vals))) 
   clump_info <- list()
-  # create vector of block sizes based on max cells per EZ 
   seq_max <- round(sqrt(max_cells_per_EZ))
   if(seq_max <= 50){
     clump_side_min <- 50
@@ -345,7 +345,7 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
   
   EZ_gen_fn <- function(clump_x, max_cells_per_EZ, output_path, run_ID){ 
     
-    # save a temporary file for clump, for tracking progress during runs, this should be deleted for final version
+    # save a temporary file for clump currently being processed 
     fake <- list(1)
     tempfileID <- paste(clump_x[[2]][1], clump_x[[2]][2], clump_x[[2]][3], clump_x[[2]][4], sep="")
     save(fake, file = paste(output_path,"/temp_folder", run_ID, "/temp_", tempfileID, ".RData",sep=""))
@@ -532,7 +532,6 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
           }
           cell_IDs_ls <- lapply(side_IDs[1:(length(side_IDs) - 1)], function(x){matrix(EZ_cell_IDs[EZ_cell_IDs[,row_or_col] %in% (min_side_IDs:x),], ncol=2)})    
           pop_sizes <- sapply(cell_IDs_ls, function(x){sum(subpop_mat[x])})
-          #diff_in_pops <- abs(tot_pop_size - (2*pop_sizes))  # i.e. diff in the two potential EZs' pop sizes. Want |C - B| and C = A - B, so |C - B| = |A - B - B| 
           pop_sizes_second <- tot_pop_size - pop_sizes
           keepers1 <- which(pop_sizes >= min_pop_per_EZ)
           keepers2 <- which(pop_sizes_second >= min_pop_per_EZ)
@@ -805,7 +804,7 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
                   }))
                   (edge_peri^2)/nrow(test_EZ_locs)
                 })
-                EZ_ID_to_add <- (nb_EZs[compact_vals == min(compact_vals)])[1]   # could consider pop and geog size but compactness is likely most important when adding on smaller chunks
+                EZ_ID_to_add <- (nb_EZs[compact_vals == min(compact_vals)])[1]   # compactness is likely most important when adding on smaller chunks, so don't consider pop size here
                 EZ_mat[EZ_mat == small_EZ] <- EZ_ID_to_add
               }
             }
@@ -842,7 +841,7 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
   
   cl <- makeCluster(ncores, par_type)
   print("starting cluster")
-  clusterExport(cl, split(ls("package:raster"),1:length(ls("package:raster")))) #, envir = .GlobalEnv  
+  clusterExport(cl, split(ls("package:raster"),1:length(ls("package:raster"))))   
   invisible(parLapply(cl, clump_info, EZ_gen_fn, max_cells_per_EZ=max_cells_per_EZ, output_path = output_path, run_ID = run_ID))
   stopCluster(cl)
   print("EZ generation complete. Compiling EZ files and generating EZ rasters next")
@@ -857,7 +856,7 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
   # a for loop used so that the EZ IDs are consecutive
   for(filenumber in 1:length(current_list)){
     load(current_list[filenumber])
-    for(file_listID in 1:length(EZ_cell_IDs)){   #in case we change to have multiple clumps per file
+    for(file_listID in 1:length(EZ_cell_IDs)){   #in case code changes to have multiple clumps per file
       EZ_cells_IDs_temp <- EZ_cell_IDs[[file_listID]]
       EZ_index <- EZ_index + 1
       EZ_master_mat[EZ_cells_IDs_temp] <- EZ_index
