@@ -19,14 +19,8 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
   if(file.exists(paste(output_path,"/EZ_pop_raster_master", run_ID, ".tif",sep=""))){
     stop(paste("Desired output filename already exists; delete file or change run_ID so that output file is given a different name. File location and name is:", output_path,"/EZ_pop_raster_master", run_ID, ".tif",sep=""))
   }
-  if (sp::proj4string(population_raster) != "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") {
-    population_raster <- projectRaster(population_raster, crs = sp::CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
-  }
-  if (sp::proj4string(settlement_raster) != "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") {
-    settlement_raster <- projectRaster(settlement_raster, crs = sp::CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
-  }
-  if (sp::proj4string(strata_raster) != "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") {
-    strata_raster <- projectRaster(strata_raster, crs = sp::CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+  if (sp::proj4string(population_raster) != sp::proj4string(settlement_raster) | sp::proj4string(population_raster) != sp::proj4string(strata_raster)) {
+    stop(paste("Projection system of rasters differs. You can use sp::proj4string() to confirm raster projections."))
   }
   new_extent <- extent(c(max(extent(population_raster)[1], extent(settlement_raster)[1], extent(strata_raster)[1]),
                          min(extent(population_raster)[2], extent(settlement_raster)[2], extent(strata_raster)[2]),
@@ -164,7 +158,7 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
   r_xmx <- extent(population_raster)[2]
   r_ymn <- extent(population_raster)[3]
   r_ymx <- extent(population_raster)[4]
-  r_crs <- crs(population_raster)
+  r_crs <- sp::proj4string(population_raster)
   n_rows <- dim(population_raster)[1]
   n_cols <- dim(population_raster)[2]
   population_mat <- as.matrix(population_raster)
@@ -176,8 +170,20 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
   # cut up study region in preparation for parallel processing  #
   ###############################################################
   
-  sett_vals <- sort(unique(sett_mat[!is.na(sett_mat)]))
-  strat_vals <- sort(unique(strata_mat[!is.na(strata_mat)]))
+  # memory calculation 
+  strat_vals <- round(strata_mat[!is.na(strata_mat)])
+  mem_pop_mat <- paste(format(object.size(population_mat),units="Mb"))
+  mem_pop_mat <- as.numeric(substr(mem_pop_mat,1,nchar(mem_pop_mat) - 3))
+  mem_strat_process <- (table(strat_vals)/length(strat_vals)) * mem_pop_mat * 3
+  spare_mem <- (gc()[2,"limit (Mb)"] * 0.95) - gc()[2,2] - mem_pop_mat - mem_strat_process # this gives limit - used - spare mem for clump_info - the mem to process ind stratum
+  strata_insuf_mem <- names(spare_mem)[which(spare_mem<=0)]
+  if(length(strata_insuf_mem)>0){
+    stop(paste("insufficient memory for the following strata:",paste(strata_insuf_mem,collapse = ",")))
+  }
+  rm(mem_pop_mat,mem_strat_process,spare_mem,strata_insuf_mem)
+  
+  sett_vals <- sort(unique(round(sett_mat[!is.na(sett_mat)])))
+  strat_vals <- sort(unique(round(strata_mat[!is.na(strata_mat)])))
   strat_sett_df <- cbind(rep(strat_vals, each = length(sett_vals)), rep(sett_vals, length(strat_vals))) 
   clump_info <- list()
   seq_max <- round(sqrt(max_cells_per_EZ))
@@ -210,8 +216,8 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
     max_strat_sett_col <- max(cell_IDs[,2])  
     sub_strat_sett_mat <- strat_sett_mat[min_strat_sett_row:max_strat_sett_row, min_strat_sett_col:max_strat_sett_col]
     sub_strat_sett_pop_mat <- population_mat[min_strat_sett_row:max_strat_sett_row, min_strat_sett_col:max_strat_sett_col]
-    if(!class(sub_strat_sett_mat) == "matrix"){sub_strat_sett_mat <- matrix(sub_strat_sett_mat, nrow=(max_strat_sett_row - min_strat_sett_row + 1))}
-    if(!class(sub_strat_sett_pop_mat) == "matrix"){sub_strat_sett_pop_mat <- matrix(sub_strat_sett_pop_mat, nrow=(max_strat_sett_row - min_strat_sett_row + 1))}
+    if(!class(sub_strat_sett_mat)[1] == "matrix"){sub_strat_sett_mat <- matrix(sub_strat_sett_mat, nrow=(max_strat_sett_row - min_strat_sett_row + 1))}
+    if(!class(sub_strat_sett_pop_mat)[1] == "matrix"){sub_strat_sett_pop_mat <- matrix(sub_strat_sett_pop_mat, nrow=(max_strat_sett_row - min_strat_sett_row + 1))}
     sub_strat_sett_pop_mat[which(is.na(sub_strat_sett_mat))] <- NA
     if(nrow(cell_IDs) > ((clump_side_min^2) * 4)){
       blocks <- block_pop_cutoffs
@@ -247,6 +253,7 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
         pop_strat_mat <- sub_strat_sett_mat
       }
       clump_raster <- raster::clump(raster::raster(pop_strat_mat), directions = 4, gaps = FALSE)
+      rm(pop_strat_mat)
       clump_mat <- as.matrix(clump_raster)
       rm(clump_raster)
       clump_IDs <- sort(unique(clump_mat[!is.na(clump_mat)]))
@@ -323,10 +330,10 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
         min_clump_col <- min(cell_IDs[,2])
         max_clump_col <- max(cell_IDs[,2])
         subclump_mat <- clump_mat[min_clump_row:max_clump_row, min_clump_col:max_clump_col]
-        if(!class(subclump_mat) == "matrix"){subclump_mat <- matrix(subclump_mat, nrow=(max_clump_row - min_clump_row + 1))}
+        if(!class(subclump_mat)[1] == "matrix"){subclump_mat <- matrix(subclump_mat, nrow=(max_clump_row - min_clump_row + 1))}
         subclump_mat[which(!subclump_mat[] == clump_ID)] <- NA
         subpop_mat <- population_mat[((min_strat_sett_row - 1) + min_clump_row):((min_strat_sett_row - 1) + max_clump_row), ((min_strat_sett_col - 1) + min_clump_col):((min_strat_sett_col - 1) + max_clump_col)]
-        if(!class(subpop_mat) == "matrix"){subpop_mat <- matrix(subpop_mat, nrow=(max_clump_row - min_clump_row + 1))}
+        if(!class(subpop_mat)[1] == "matrix"){subpop_mat <- matrix(subpop_mat, nrow=(max_clump_row - min_clump_row + 1))}
         subpop_mat[which(is.na(subclump_mat))] <- NA
         listID <- length(clump_info) + 1
         clump_info[[listID]] <- list(subpop_mat, c(((min_strat_sett_row - 1) + min_clump_row), ((min_strat_sett_row - 1) + max_clump_row), ((min_strat_sett_col - 1) + min_clump_col), ((min_strat_sett_col - 1) + max_clump_col)), strat_sett_target_pop_per_EZ)
@@ -364,7 +371,7 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
     max_clump_col <- clump_x[[2]][4]
     subpop_mat <- clump_x[[1]]
     clump_x[[1]] <- 0 # to reduce memory use
-    if(class(subpop_mat) == "matrix"){                       #i.e. more than 1 cell (almost always)
+    if(class(subpop_mat)[1] == "matrix"){                       #i.e. more than 1 cell (almost always)
       cell_IDs <- which(!is.na(subpop_mat), arr.ind = TRUE)
     }else{                                                      #i.e. just 1 cell (occasionally, if other cells of smod block have corresponding pop or strata = NA)
       cell_IDs <- matrix(c(1,1), nrow=1)
@@ -556,7 +563,7 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
                 d1 <- d1[(nrow(cell_IDs_ls[[test_EZ_split]])+1):length(d1)] #FALSES for EZ_cell_IDs that are not duplicated in cell_IDs for one side of split
                 test_EZ_locs <- EZ_cell_IDs[which(d1 == FALSE),]
               }
-              if(!class(test_EZ_locs) == "matrix"){test_EZ_locs <- matrix(test_EZ_locs, nrow=1)}
+              if(!class(test_EZ_locs)[1] == "matrix"){test_EZ_locs <- matrix(test_EZ_locs, nrow=1)}
               colnames(test_EZ_locs) <- c("row","col")
               edge_peri <- sum(sapply(split(test_EZ_locs, 1:nrow(test_EZ_locs)),function(mat_cell){
                 row <- c((mat_cell[1] + 1), (mat_cell[1] - 1), mat_cell[1], mat_cell[1])
@@ -692,7 +699,7 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
                   d1 <- d1[(nrow(cell_IDs_ls[[test_EZ_split]])+1):length(d1)] #FALSES for EZ_cell_IDs that are not duplicated in cell_IDs for one side of split
                   test_EZ_locs <- EZ_cell_IDs[which(d1 == FALSE),]
                 }
-                if(!class(test_EZ_locs) == "matrix"){test_EZ_locs <- matrix(test_EZ_locs, nrow=1)}
+                if(!class(test_EZ_locs)[1] == "matrix"){test_EZ_locs <- matrix(test_EZ_locs, nrow=1)}
                 colnames(test_EZ_locs) <- c("row","col")
                 edge_peri <- sum(sapply(split(test_EZ_locs, 1:nrow(test_EZ_locs)),function(mat_cell){
                   row <- c((mat_cell[1] + 1), (mat_cell[1] - 1), mat_cell[1], mat_cell[1])
@@ -762,7 +769,7 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
         max_EZ_col <- max(cell_IDs[,2])
         subEZ_IDs_mat <- EZ_mat[min_EZ_row:max_EZ_row, min_EZ_col:max_EZ_col]
         subEZ_IDs_mat[which(!subEZ_IDs_mat[] == EZ_ID)] <- NA
-        if(class(subEZ_IDs_mat) == "matrix"){
+        if(class(subEZ_IDs_mat)[1] == "matrix"){
           EZ_clump_raster <- raster::clump(raster::raster(subEZ_IDs_mat), directions = 4, gaps = FALSE)
           clump_ls <- sort(unique(getValues(EZ_clump_raster)))
           if(length(clump_ls) > 1){
