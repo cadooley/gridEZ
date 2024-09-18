@@ -170,18 +170,6 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
   # cut up study region in preparation for parallel processing  #
   ###############################################################
   
-  # memory calculation 
-  strat_vals <- round(strata_mat[!is.na(strata_mat)])
-  mem_pop_mat <- paste(format(object.size(population_mat),units="Mb"))
-  mem_pop_mat <- as.numeric(substr(mem_pop_mat,1,nchar(mem_pop_mat) - 3))
-  mem_strat_process <- (table(strat_vals)/length(strat_vals)) * mem_pop_mat * 3
-  spare_mem <- (gc()[2,"limit (Mb)"] * 0.95) - gc()[2,2] - mem_pop_mat - mem_strat_process # this gives limit - used - spare mem for clump_info - the mem to process ind stratum
-  strata_insuf_mem <- names(spare_mem)[which(spare_mem<=0)]
-  if(length(strata_insuf_mem)>0){
-    stop(paste("insufficient memory for the following strata:",paste(strata_insuf_mem,collapse = ",")))
-  }
-  rm(mem_pop_mat,mem_strat_process,spare_mem,strata_insuf_mem)
-  
   sett_vals <- sort(unique(round(sett_mat[!is.na(sett_mat)])))
   strat_vals <- sort(unique(round(strata_mat[!is.na(strata_mat)])))
   strat_sett_df <- cbind(rep(strat_vals, each = length(sett_vals)), rep(sett_vals, length(strat_vals))) 
